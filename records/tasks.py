@@ -1,7 +1,6 @@
 import asyncio
 
 import aioredis
-import timeframe as timeframe
 from aio_binance.futures.usdt import WsClient, Client, ApiSession
 
 from config import settings
@@ -37,17 +36,17 @@ class Tasks:
         self.redis = await aioredis.from_url(REDIS_URL,
                                              encoding='UTF-8',
                                              decode_responses=True)
-
-        async with self.redis.client() as conn:
-            self.symbols = await conn.lrange('symbols', 0, -1)
-        if CONFIG['general']['download_kline']:
-            await self.__download_kline()
-        tasks = [
-            asyncio.create_task(self.__task_kline()),
-            asyncio.create_task(self.__del_kline())
-        ]
-        res = await asyncio.gather(*tasks, return_exceptions=True)
-        print(res)
+        while True:
+            async with self.redis.client() as conn:
+                self.symbols = await conn.lrange('symbols', 0, -1)
+            if CONFIG['general']['download_kline']:
+                await self.__calculate_kline()
+            tasks = [
+                asyncio.create_task(self.__task_kline()),
+                asyncio.create_task(self.__del_kline())
+            ]
+            res = await asyncio.gather(*tasks, return_exceptions=True)
+            print(res)
 
     @staticmethod
     async def find_symbol():
@@ -83,31 +82,42 @@ class Tasks:
                 await pipe.execute()
             await asyncio.sleep(60*10)  # 1 hour
 
-    async def __download_kline(self):
-        await self.redis.flushdb()
-        async with ApiSession() as session:
-            async with self.redis.pipeline(transaction=True) as pipe:
-                for symbol in self.symbols:
-                    res = await session.get_public_klines(symbol, self.timeframe, limit=1000)
-                    for item in res['data']:
-                        data = {
-                            self.list_keys[0]: item[0],
-                            self.list_keys[1]: item[1],
-                            self.list_keys[2]: item[2],
-                            self.list_keys[3]: item[3],
-                            self.list_keys[4]: item[4],
-                            self.list_keys[5]: item[5],
-                            self.list_keys[6]: item[6],
-                            self.list_keys[7]: item[7],
-                            self.list_keys[8]: item[8],
-                            self.list_keys[9]: item[9],
-                            self.list_keys[10]: item[10],
-                            self.list_keys[11]: item[11]
-                        }
-                        for key in self.list_keys:
-                            pipe.lpush(':'.join([
-                                symbol,
-                                self.timeframe,
-                                key]), data[key])
-                        await pipe.execute()
-        await self.find_symbol()
+    async def __calculate_kline(self):
+        async with self.redis.pipeline(transaction=True) as pipe:
+            time_kline_last = await pipe.lindex('BTCUSDT:1m:T', 0).execute()
+            if len(time_kline_last) > 0:
+                async with ApiSession() as session:
+                    for symbol in self.symbols:
+                        res = await session.get_public_klines(symbol, self.timeframe, start_time=int(time_kline_last[0]))
+                        print(len(res['data']))
+                        print(res['data'])
+                        for item in res['data']:
+                            data = {}
+                            i = 0
+                            while i < 12:
+                                data[self.list_keys[i]] = item[i]
+                                i += 1
+                            for key in self.list_keys:
+                                pipe.lpush(':'.join([
+                                    symbol,
+                                    self.timeframe,
+                                    key]), data[key])
+                            await pipe.execute()
+            else:
+                await self.redis.flushdb()
+                async with ApiSession() as session:
+                    for symbol in self.symbols:
+                        res = await session.get_public_klines(symbol, self.timeframe, limit=1000)
+                        for item in res['data']:
+                            data = {}
+                            i = 0
+                            while i < 12:
+                                data[self.list_keys[i]] = item[i]
+                                i += 1
+                            for key in self.list_keys:
+                                pipe.lpush(':'.join([
+                                    symbol,
+                                    self.timeframe,
+                                    key]), data[key])
+                            await pipe.execute()
+                await self.find_symbol()
