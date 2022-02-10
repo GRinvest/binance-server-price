@@ -97,7 +97,7 @@ async def read_users_me(sym: str = 'all',
                         temp = klines[_symbol]
                         temp.extend(list_klines)
                         State.klines[timeframe].update({_symbol: temp})
-                    klines[_symbol] = State.klines[timeframe][_symbol][:limit]
+                    klines[_symbol] = State.klines[timeframe][_symbol]
             else:
                 await get_kline(sym,
                                 timeframe,
@@ -106,7 +106,7 @@ async def read_users_me(sym: str = 'all',
                                 klines)
         return UJSONResponse(content={"data": klines}, headers={"Access-Control-Allow-Origin": "*"})
 
-# Example
+
 async def get_kline(symbol, time_frame, limit, redis, klines):
     async with redis.client() as conn:
         data = []
