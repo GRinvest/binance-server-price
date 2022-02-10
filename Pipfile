@@ -16,6 +16,7 @@ passlib = "*"
 bcrypt = "*"
 timeframe = "*"
 key = "*"
+python-multipart = "*"
 
 [dev-packages]
 

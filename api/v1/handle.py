@@ -106,7 +106,7 @@ async def read_users_me(sym: str = 'all',
                                 klines)
         return UJSONResponse(content={"data": klines}, headers={"Access-Control-Allow-Origin": "*"})
 
-
+# Example
 async def get_kline(symbol, time_frame, limit, redis, klines):
     async with redis.client() as conn:
         data = []
