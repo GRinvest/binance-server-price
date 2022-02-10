@@ -7,6 +7,11 @@ from config import settings
 from records import tasks
 
 CONFIG = settings.load_config()
+REDIS_URL = 'redis://{}:{}/{}'.format(
+    CONFIG['database']['host'],
+    CONFIG['database']['port'],
+    CONFIG['database']['dbname']
+)
 
 
 def process_api(_event):
@@ -28,11 +33,51 @@ def process_records(_event, timeframe):
         asyncio.run(asyncio.sleep(1))
 
 
+async def calculate_kline():
+    import aioredis
+    from aio_binance.futures.usdt import ApiSession
+    import pickle
+
+    _tasks = []
+    srize = 12
+    await tasks.find_symbol()
+    redis = await aioredis.from_url(REDIS_URL)
+    async with ApiSession() as session:
+        instance = tasks.AddedKlines(session)
+        async with redis.pipeline(transaction=True) as pipe:
+            time_kline_last, symbols = await pipe.lindex('BTCUSDT:1m', 0).lrange('symbols', 0, -1).execute()
+        if time_kline_last:
+            time_kline_last = pickle.loads(time_kline_last)
+            for _tf in CONFIG['general']['timeframe']:
+                for _s in symbols:
+                    symbol = _s.decode("utf-8")
+                    _tasks.append(asyncio.create_task(instance.added(symbol, _tf, time_kline_last)))
+        else:
+            srize = 4
+            for _tf in CONFIG['general']['timeframe']:
+                for _s in symbols:
+                    symbol = _s.decode("utf-8")
+                    _tasks.append(asyncio.create_task(instance.new(symbol, _tf)))
+
+        srize_list = [_tasks[i:i + srize] for i in range(0, len(_tasks), srize)]
+
+        for item in srize_list:
+            await asyncio.gather(*item)
+    async with redis.pipeline(transaction=True) as pipe:
+
+        for key, value in instance.klines.items():
+            print(f"{key} {len(value)}")
+            pipe.lpush(key, *value)
+        await pipe.execute()
+    await asyncio.sleep(1)
+
+
 def process_symbol(_event):
+    from loguru import logger
     try:
-        asyncio.run(tasks.Tasks().find_symbol())
+        asyncio.run(calculate_kline())
     except Exception as e:
-        print(e)
+        logger.exception(e)
     else:
         _event.set()
 
@@ -44,7 +89,7 @@ if __name__ == '__main__':
         procs = [
             Process(target=process_symbol, args=(event,)),
             Process(target=process_api, args=(event,))
-            ]
+        ]
         for tf in CONFIG['general']['timeframe']:
             procs.append(Process(target=process_records, args=(event, tf,)))
         for proc in procs:

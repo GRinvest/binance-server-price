@@ -19,7 +19,6 @@ REDIS_URL = 'redis://{}:{}/{}'.format(
     CONFIG['database']['dbname']
 )
 
-
 # to get a string like this run:
 # openssl rand -hex 32
 USERNAME = CONFIG['api']['username']
@@ -31,10 +30,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = CONFIG['api']['access_to_token_expiry_minutes']  #
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 app = FastAPI(
-        title="API endpoints Binance Price",
-        description=f"A prototype of mounting the main API app under /api",
-        version="1.0"
-    )
+    title="API endpoints Binance Price",
+    description=f"A prototype of mounting the main API app under /api",
+    version="1.0"
+)
 app.include_router(handle.router, prefix='/api')
 origins = ["*"]
 
@@ -82,12 +81,11 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 @app.on_event("startup")
 async def startup() -> None:
-    redis = await aioredis.from_url(REDIS_URL,
-                                    encoding='UTF-8',
-                                    decode_responses=True)
+    redis = await aioredis.from_url(REDIS_URL)
     State.redis = redis
     State.secret = SECRET_KEY
     State.username = USERNAME
+    await handle.first_run_klines()
 
 
 @app.on_event("shutdown")

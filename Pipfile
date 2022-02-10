@@ -15,6 +15,7 @@ cryptography = "*"
 passlib = "*"
 bcrypt = "*"
 timeframe = "*"
+key = "*"
 
 [dev-packages]
 
