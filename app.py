@@ -1,6 +1,6 @@
+import asyncio
 from datetime import datetime, timedelta
 
-import aioredis
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
@@ -10,14 +10,7 @@ from starlette.datastructures import State
 
 from api.v1 import handle
 from api.v1 import models
-from config import settings
-
-CONFIG = settings.load_config()
-REDIS_URL = 'redis://{}:{}/{}'.format(
-    CONFIG['database']['host'],
-    CONFIG['database']['port'],
-    CONFIG['database']['dbname']
-)
+from records.db import redis, CONFIG
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -81,13 +74,19 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 @app.on_event("startup")
 async def startup() -> None:
-    redis = await aioredis.from_url(REDIS_URL)
     State.redis = redis
     State.secret = SECRET_KEY
     State.username = USERNAME
-    await handle.first_run_klines()
+    State.task_run_klines = asyncio.create_task(handle.run_klines())
 
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
-    pass
+    _redis = State.redis
+    await _redis.close()
+    task_run_klines = State.task_run_klines
+    task_run_klines.cancel()
+    try:
+        await task_run_klines
+    except asyncio.CancelledError:
+        print("Task run_klines() is cancelled now")

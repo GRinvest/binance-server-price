@@ -17,6 +17,7 @@ bcrypt = "*"
 timeframe = "*"
 key = "*"
 python-multipart = "*"
+redistimeseries = "*"
 
 [dev-packages]
 

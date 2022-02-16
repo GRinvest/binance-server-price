@@ -1,24 +1,15 @@
 import asyncio
 import pickle
 
-import aioredis
-from aio_binance.futures.usdt import WsClient, Client, ApiSession
+from aio_binance.futures.usdt import WsClient, ApiSession
 
-from config import settings
-
-CONFIG = settings.load_config()
-REDIS_URL = 'redis://{}:{}/{}'.format(
-    CONFIG['database']['host'],
-    CONFIG['database']['port'],
-    CONFIG['database']['dbname']
-)
+from .db import redis
 
 
 class Tasks:
 
     def __init__(self, time_frame='1m'):
         self.timeframe = time_frame
-        self.redis = None
         self.conn = None
         self.pipe = None
         self.symbols = []
@@ -34,12 +25,11 @@ class Tasks:
                 data['data']['k']['i']]), pickle.dumps(_data))
 
     async def creation(self):
-        self.redis = await aioredis.from_url(REDIS_URL,
-                                             encoding='UTF-8',
-                                             decode_responses=True)
+        async with redis.client() as conn:
+            symbols = await conn.lrange('symbols', 0, -1)
+        for _s in symbols:
+            self.symbols.append(_s.decode("utf-8"))
         while True:
-            async with self.redis.client() as conn:
-                self.symbols = await conn.lrange('symbols', 0, -1)
             tasks = [
                 asyncio.create_task(self.__task_kline()),
                 asyncio.create_task(self.__del_kline())
@@ -53,43 +43,35 @@ class Tasks:
         for symbol in self.symbols:
             streams.append(ws.stream_kline(symbol, self.timeframe))
         res = await asyncio.gather(*streams)
-        async with self.redis.client() as self.conn:
+        async with redis.client() as self.conn:
             await ws.subscription_streams(res, self.event_kline)
 
-    async def __del_kline(self, limit=1000000):
+    async def __del_kline(self, limit=500):
         while True:
-            async with self.redis.pipeline(transaction=True) as pipe:
+            async with redis.pipeline(transaction=True) as pipe:
                 for symbol in self.symbols:
                     s: str = symbol
                     i: str = self.timeframe
                     pipe.ltrim(':'.join([s, i]), 0, limit)
                 await pipe.execute()
-            await asyncio.sleep(60 * 60)  # 1 hour
+            await asyncio.sleep(60 * 15)  # 15 min
 
 
 class AddedKlines:
 
-    def __init__(self, session):
-        self.session: ApiSession = session
+    def __init__(self):
         self.klines = {}
-
-    async def added(self,
-                    symbol: str,
-                    time_frame: str,
-                    time_kline_last: list) -> None:
-        res = await self.session.get_public_klines(symbol,
-                                                   time_frame,
-                                                   start_time=int(time_kline_last[6]),
-                                                   limit=100)
-        if len(res['data']) > 0:
-            self.calculate(res['data'], ':'.join([symbol, time_frame]))
 
     async def new(self,
                   symbol: str,
-                  time_frame: str) -> None:
-        res = await self.session.get_public_klines(symbol,
-                                                   time_frame,
-                                                   limit=1000)
+                  time_frame: str,
+                  session: ApiSession,
+                  sem: asyncio.Semaphore) -> None:
+        async with sem:
+            res = await session.get_public_klines(
+                symbol,
+                time_frame,
+                limit=500)
         self.calculate(res['data'], ':'.join([symbol, time_frame]))
 
     def calculate(self,
@@ -98,17 +80,4 @@ class AddedKlines:
         temp = []
         for item in data:
             temp.append(pickle.dumps(item))
-        temp.reverse()
         self.klines[key] = temp
-
-
-async def find_symbol():
-    redis = await aioredis.from_url(REDIS_URL)
-    async with redis.pipeline(transaction=True) as pipe:
-        await pipe.delete('symbols').execute()
-        res = await Client().get_public_exchange_info()
-        for item in res['data']['symbols']:
-            if item['contractType'] == 'PERPETUAL' and item['status'] == 'TRADING':
-                pipe.lpush('symbols', item['symbol'])
-        await pipe.execute()
-    await asyncio.sleep(1)

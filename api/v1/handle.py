@@ -9,7 +9,7 @@ from fastapi.responses import UJSONResponse
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from starlette.datastructures import State
-
+from copy import deepcopy
 from api.v1 import models
 from config import settings
 
@@ -56,55 +56,13 @@ async def get_current_active_user(current_user: models.User = Depends(get_curren
     pass
 
 
-@router.get("/symbol", dependencies=[Depends(get_current_active_user)])
-async def read_users_me(sym: str = 'all',
-                        timeframe: str = '1m',
-                        limit: int = 500):
+@router.get("/symbols", dependencies=[Depends(get_current_active_user)])
+async def read_users_me(timeframe: str = '1m'):
     klines = {}
-    redis: aioredis.Redis = State.redis
-    async with AioTimer(name='Handle symbol'):
-        async with redis.client() as conn:
-            tasks = []
-            if sym == 'all':
-                symbols = await conn.lrange('symbols', 0, -1)
-                for _s in symbols:
-                    _symbol = _s.decode("utf-8")
-                    list_klines = State.klines[timeframe][_symbol]
-                    _limit = await conn.lpos(':'.join([_symbol, timeframe]), pickle.dumps(list_klines[0]))
+    for _s in State.symbols:
+        klines[_s] = State.klines[timeframe][_s]
 
-                    if _limit and _limit > 0:
-                        tasks.append(
-                            asyncio.create_task(
-                                get_kline(
-                                    _symbol,
-                                    timeframe,
-                                    _limit - 1,
-                                    redis,
-                                    klines
-                                )
-                            )
-                        )
-                await asyncio.gather(*tasks)
-
-                for _s in symbols:
-                    _symbol = _s.decode("utf-8")
-                    list_klines: list = State.klines[timeframe][_symbol]
-                    i = 0
-                    while i < len(klines.get(_symbol, [])):
-                        list_klines.pop()
-                        i += 1
-                    if klines.get(_symbol):
-                        temp = klines[_symbol]
-                        temp.extend(list_klines)
-                        State.klines[timeframe].update({_symbol: temp})
-                    klines[_symbol] = State.klines[timeframe][_symbol]
-            else:
-                await get_kline(sym,
-                                timeframe,
-                                limit,
-                                redis,
-                                klines)
-        return UJSONResponse(content={"data": klines}, headers={"Access-Control-Allow-Origin": "*"})
+    return UJSONResponse(content={"data": klines}, headers={"Access-Control-Allow-Origin": "*"})
 
 
 async def get_kline(symbol, time_frame, limit, redis, klines):
@@ -116,19 +74,27 @@ async def get_kline(symbol, time_frame, limit, redis, klines):
         klines[symbol] = data
 
 
-async def first_run_klines():
-    temp_klines = {}
+async def run_klines():
     redis: aioredis.Redis = State.redis
     async with redis.client() as conn:
         symbols = await conn.lrange('symbols', 0, -1)
-        for time_frame in CONFIG['general']['timeframe']:
-            klines = {}
-            for _symbol in symbols:
-                _s = _symbol.decode("utf-8")
-                data = []
-                res = await conn.lrange(':'.join([_s, time_frame]), 0, 1000)
-                for item in res:
-                    data.append(pickle.loads(item))
-                klines[_s] = data
-            temp_klines[time_frame] = klines
-    State.klines = temp_klines
+    _temp = []
+    for _s in symbols:
+        _temp.append(_s.decode("utf-8"))
+    State.symbols = deepcopy(_temp)
+    del _temp
+    while True:
+        temp_klines = {}
+        async with redis.client() as conn:
+            for time_frame in CONFIG['general']['timeframe']:
+                klines = {}
+                for _s in State.symbols:
+                    data = []
+                    res = await conn.lrange(':'.join([_s, time_frame]), 0, 500)
+                    for item in res:
+                        data.append(pickle.loads(item))
+                    klines[_s] = data
+                temp_klines[time_frame] = klines
+        State.klines = deepcopy(temp_klines)
+        print('update kline')
+        await asyncio.sleep(60)
