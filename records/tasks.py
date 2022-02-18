@@ -27,12 +27,12 @@ class Tasks:
             if data['data']['s'] == 'BTCUSDT' and data['data']['k']['i'] == '1m':
                 self.event_kline.set()
 
-
     async def creation(self):
         async with redis.client() as conn:
             symbols = await conn.lrange('symbols', 0, -1)
         for _s in symbols:
             self.symbols.append(_s.decode("utf-8"))
+        self.event_kline.set()
         while True:
             tasks = [
                 asyncio.create_task(self.__task_kline()),
