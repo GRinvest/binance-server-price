@@ -94,7 +94,11 @@ async def run_klines():
                     res = await df_from_redis(conn, f'df:{time_frame}:{_s}')
                     res.drop_duplicates(subset=['open_time'], keep=False, inplace=True)
                     klines[_s] = res.to_json()
-                temp_klines[time_frame] = klines
-        State.klines = deepcopy(temp_klines)
+                try:
+                    temp_klines[time_frame] = klines
+                except Exception as e:
+                    logger.error(e)
+        if temp_klines.get('BTCUSDT'):
+            State.klines = deepcopy(temp_klines)
         print('update kline')
         await asyncio.sleep(50)
