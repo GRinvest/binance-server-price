@@ -88,8 +88,8 @@ async def run(time_frame, event_kline, event_df):
     async with redis.client() as conn:
         symbols = await conn.lrange('symbols', 0, -1)
     while True:
-        event_kline.acquire()
+        event_kline.get()
         await asyncio.sleep(5)
         await _create_df(time_frame, symbols)
-        event_df.release()
+        event_df.put(True)
         await asyncio.sleep(1)

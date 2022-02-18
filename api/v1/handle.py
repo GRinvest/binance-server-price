@@ -85,7 +85,7 @@ async def run_klines():
     State.symbols = deepcopy(_temp)
     del _temp
     while True:
-        State.event_df.acquire()
+        State.event_df.get()
         temp_klines = {}
         async with redis.client() as conn:
             for time_frame in CONFIG['general']['timeframe']:

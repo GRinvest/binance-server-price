@@ -25,9 +25,10 @@ class Tasks:
                 data['data']['s'],
                 data['data']['k']['i']]), pickle.dumps(_data))
             if data['data']['s'] == 'BTCUSDT' and data['data']['k']['i'] == '1m':
-                self.event_kline.release()
+                self.event_kline.put(True)
 
     async def creation(self):
+        self.event_kline.put(True)
         async with redis.client() as conn:
             symbols = await conn.lrange('symbols', 0, -1)
         for _s in symbols:
