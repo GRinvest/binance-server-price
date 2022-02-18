@@ -32,7 +32,6 @@ class Tasks:
             symbols = await conn.lrange('symbols', 0, -1)
         for _s in symbols:
             self.symbols.append(_s.decode("utf-8"))
-        self.event_kline.release()
         while True:
             tasks = [
                 asyncio.create_task(self.__task_kline()),
