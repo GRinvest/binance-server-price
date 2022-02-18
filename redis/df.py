@@ -1,5 +1,6 @@
 import pyarrow as _pa
 from aioredis import Redis
+from loguru import logger
 
 
 def df_in_redis(r: Redis.pipeline, alias: str, df) -> None:
@@ -11,5 +12,5 @@ async def df_from_redis(r: Redis, alias: str) -> any:
     data = await r.get(alias)
     try:
         return _pa.deserialize(data)
-    except:
-        print("No data")
+    except Exception as e:
+        logger.error(f"df_from_redis {e}")
