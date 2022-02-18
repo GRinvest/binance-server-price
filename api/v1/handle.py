@@ -86,6 +86,7 @@ async def run_klines():
     del _temp
     while True:
         if State.event_df.qsize() != 0:
+            t = State.event_df.get()
             temp_klines = {}
             async with redis.client() as conn:
                 for time_frame in CONFIG['general']['timeframe']:

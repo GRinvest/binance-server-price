@@ -7,10 +7,9 @@ from config import redis
 
 
 class Tasks:
-    _event_kline = None
 
     def __init__(self, event_kline, time_frame='1m'):
-        Tasks._event_kline = event_kline
+        self._event_kline = event_kline
         self.timeframe = time_frame
         self.conn = None
         self.pipe = None
@@ -25,11 +24,11 @@ class Tasks:
             await self.conn.lpush(':'.join([
                 data['data']['s'],
                 data['data']['k']['i']]), pickle.dumps(_data))
-            if data['data']['s'] == 'BTCUSDT' and data['data']['k']['i'] == '1m':
-                Tasks._event_kline.put(True)
+            if data['data']['s'] == 'BTCUSDT':
+                self._event_kline.put(True)
 
     async def creation(self):
-        Tasks._event_kline.put(True)
+        self._event_kline.put(True)
         async with redis.client() as conn:
             symbols = await conn.lrange('symbols', 0, -1)
         for _s in symbols:

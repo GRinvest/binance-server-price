@@ -93,4 +93,5 @@ async def run(time_frame, event_kline, event_df):
         await _create_df(time_frame, symbols)
         if time_frame == '1m':
             event_df.put(True)
+        print(f'update create_df {time_frame}')
         await asyncio.sleep(1)
