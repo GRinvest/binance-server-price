@@ -7,10 +7,9 @@ from config import CONFIG
 from records import tasks
 
 
-def process_api(_event, _event_df):
-    from starlette.datastructures import State
+def process_api(_event):
     _event.wait()
-    State.event_df = _event_df
+
     uvicorn.run("app:app",
                 host=CONFIG['api']['host'],
                 port=CONFIG['api']['port'],
@@ -18,10 +17,10 @@ def process_api(_event, _event_df):
                 reload=False)
 
 
-def process_records(_event, timeframe, _event_kline):
+def process_records(_event, timeframe):
     _event.wait()
     try:
-        asyncio.run(tasks.Tasks(_event_kline, timeframe).creation())
+        asyncio.run(tasks.Tasks(timeframe).creation())
     except KeyboardInterrupt:
         pass
     finally:
@@ -40,26 +39,24 @@ def process_symbol(_event):
         _event.set()
 
 
-def process_create_df(_event, time_frame, _event_kline, _event_df):
+def process_create_df(_event, time_frame):
     """ Create DataFrame and save Redis"""
     from dataframe import record
     _event.wait()
-    asyncio.run(record.run(time_frame, _event_kline, _event_df))
+    asyncio.run(record.run(time_frame))
 
 
 if __name__ == '__main__':
     print('   $$$ Run program:')
     event = Event()
-    event_kline = Queue()
-    event_df = Queue()
     try:
         procs = [
             Process(target=process_symbol, args=(event,)),
-            Process(target=process_api, args=(event, event_df, ))
+            Process(target=process_api, args=(event, ))
         ]
         for tf in CONFIG['general']['timeframe']:
-            procs.append(Process(target=process_records, args=(event, tf, event_kline, )))
-            procs.append(Process(target=process_create_df, args=(event, tf, event_kline, event_df)))
+            procs.append(Process(target=process_records, args=(event, tf, )))
+            procs.append(Process(target=process_create_df, args=(event, tf, )))
         for proc in procs:
             proc.start()
         for proc in procs:
