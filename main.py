@@ -30,7 +30,8 @@ def process_symbol(_event):
     from loguru import logger
     from records.first import Klines
     try:
-        asyncio.run(Klines().run())
+        if CONFIG['general']['download_kline']:
+            asyncio.run(Klines().run())
     except Exception as e:
         logger.exception(e)
     else:
