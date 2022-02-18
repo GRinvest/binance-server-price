@@ -85,7 +85,7 @@ async def run_klines():
     State.symbols = deepcopy(_temp)
     del _temp
     while True:
-        await asyncio.sleep(10)
+        State.event_df.wait()
         temp_klines = {}
         async with redis.client() as conn:
             for time_frame in CONFIG['general']['timeframe']:
@@ -101,4 +101,3 @@ async def run_klines():
         if temp_klines.get('1m'):
             State.klines = deepcopy(temp_klines)
         print('update kline')
-        await asyncio.sleep(50)
