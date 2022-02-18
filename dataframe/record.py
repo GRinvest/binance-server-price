@@ -91,5 +91,6 @@ async def run(time_frame, event_kline, event_df):
         event_kline.get()
         await asyncio.sleep(5)
         await _create_df(time_frame, symbols)
-        event_df.put(True)
+        if time_frame == '1m':
+            event_df.put(True)
         await asyncio.sleep(1)
