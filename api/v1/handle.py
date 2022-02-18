@@ -98,7 +98,7 @@ async def run_klines():
                     temp_klines[time_frame] = klines
                 except Exception as e:
                     logger.error(e)
-        if temp_klines.get('BTCUSDT'):
+        if temp_klines.get('1m'):
             State.klines = deepcopy(temp_klines)
         print('update kline')
         await asyncio.sleep(50)
