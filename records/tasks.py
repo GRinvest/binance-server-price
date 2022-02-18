@@ -25,14 +25,14 @@ class Tasks:
                 data['data']['s'],
                 data['data']['k']['i']]), pickle.dumps(_data))
             if data['data']['s'] == 'BTCUSDT' and data['data']['k']['i'] == '1m':
-                self.event_kline.set()
+                self.event_kline.release()
 
     async def creation(self):
         async with redis.client() as conn:
             symbols = await conn.lrange('symbols', 0, -1)
         for _s in symbols:
             self.symbols.append(_s.decode("utf-8"))
-        self.event_kline.set()
+        self.event_kline.release()
         while True:
             tasks = [
                 asyncio.create_task(self.__task_kline()),

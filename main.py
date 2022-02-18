@@ -1,5 +1,5 @@
 import asyncio
-from multiprocessing import Process, Event
+from multiprocessing import Process, Event, Lock
 
 import uvicorn
 
@@ -50,8 +50,8 @@ def process_create_df(_event, time_frame, _event_kline, _event_df):
 if __name__ == '__main__':
     print('   $$$ Run program:')
     event = Event()
-    event_kline = Event()
-    event_df = Event()
+    event_kline = Lock()
+    event_df = Lock()
     try:
         procs = [
             Process(target=process_symbol, args=(event,)),
