@@ -3,27 +3,20 @@ from multiprocessing import Process, Event
 
 import uvicorn
 
-from config import settings
+from config import CONFIG
 from records import tasks
-
-CONFIG = settings.load_config()
-REDIS_URL = 'redis://{}:{}/{}'.format(
-    CONFIG['database']['host'],
-    CONFIG['database']['port'],
-    CONFIG['database']['dbname']
-)
 
 
 def process_api(_event):
     _event.wait()
-    uvicorn.run("app:app", host=CONFIG['api']['host'], port=CONFIG['api']['port'],
-                log_level='debug', reload=False)
+    uvicorn.run("app:app",
+                host=CONFIG['api']['host'],
+                port=CONFIG['api']['port'],
+                log_level='debug',
+                reload=False)
 
 
 def process_records(_event, timeframe):
-    import platform
-    if platform.system() == 'Windows':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     _event.wait()
     try:
         asyncio.run(tasks.Tasks(timeframe).creation())
@@ -44,6 +37,13 @@ def process_symbol(_event):
         _event.set()
 
 
+def process_create_df(_event, time_frame):
+    """ Create DataFrame and save Redis"""
+    from dataframe import record
+    _event.wait()
+    asyncio.run(record.run(time_frame))
+
+
 if __name__ == '__main__':
     print('   $$$ Run program:')
     event = Event()
@@ -54,6 +54,7 @@ if __name__ == '__main__':
         ]
         for tf in CONFIG['general']['timeframe']:
             procs.append(Process(target=process_records, args=(event, tf,)))
+            procs.append(Process(target=process_create_df, args=(event, tf,)))
         for proc in procs:
             proc.start()
         for proc in procs:

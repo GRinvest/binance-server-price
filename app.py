@@ -10,7 +10,7 @@ from starlette.datastructures import State
 
 from api.v1 import handle
 from api.v1 import models
-from records.db import redis, CONFIG
+from config import redis, CONFIG
 
 # to get a string like this run:
 # openssl rand -hex 32

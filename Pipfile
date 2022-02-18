@@ -18,6 +18,10 @@ timeframe = "*"
 key = "*"
 python-multipart = "*"
 redistimeseries = "*"
+numpy = "*"
+pandas = "*"
+pyarrow = "*"
+tapy = "*"
 
 [dev-packages]
 

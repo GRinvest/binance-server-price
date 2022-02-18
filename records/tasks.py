@@ -3,7 +3,7 @@ import pickle
 
 from aio_binance.futures.usdt import WsClient, ApiSession
 
-from .db import redis
+from config import redis
 
 
 class Tasks:

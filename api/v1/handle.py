@@ -1,19 +1,20 @@
 import asyncio
 import pickle
+from copy import deepcopy
 from time import time
 
 import aioredis
-from aio_binance.timer import AioTimer
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import UJSONResponse
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from loguru import logger
 from starlette.datastructures import State
-from copy import deepcopy
-from api.v1 import models
-from config import settings
 
-CONFIG = settings.load_config()
+from api.v1 import models
+from config import CONFIG
+from redis.df import df_from_redis
+
 router = APIRouter(prefix='/v1')
 ALGORITHM = "HS256"
 
@@ -84,17 +85,16 @@ async def run_klines():
     State.symbols = deepcopy(_temp)
     del _temp
     while True:
+        await asyncio.sleep(10)
         temp_klines = {}
         async with redis.client() as conn:
             for time_frame in CONFIG['general']['timeframe']:
                 klines = {}
                 for _s in State.symbols:
-                    data = []
-                    res = await conn.lrange(':'.join([_s, time_frame]), 0, 500)
-                    for item in res:
-                        data.append(pickle.loads(item))
-                    klines[_s] = data
+                    res = await df_from_redis(conn, f'df:{time_frame}:{_s}')
+                    res.drop_duplicates(subset=['open_time'], keep=False, inplace=True)
+                    klines[_s] = res.to_json()
                 temp_klines[time_frame] = klines
         State.klines = deepcopy(temp_klines)
         print('update kline')
-        await asyncio.sleep(60)
+        await asyncio.sleep(50)
