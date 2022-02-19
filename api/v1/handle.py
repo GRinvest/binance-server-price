@@ -90,6 +90,7 @@ async def run_klines(q: JoinableQueue):
             q.join()
             temp_klines = {}
             async with lock:
+                await asyncio.sleep(3)
                 async with redis.client() as conn:
                     for time_frame in CONFIG['general']['timeframe']:
                         klines = {}
