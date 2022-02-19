@@ -59,11 +59,7 @@ async def get_current_active_user(current_user: models.User = Depends(get_curren
 
 @router.get("/symbols", dependencies=[Depends(get_current_active_user)])
 async def read_users_me(timeframe: str = '1m'):
-    klines = {}
-    for _s in State.symbols:
-        klines[_s] = State.klines[timeframe][_s]
-
-    return UJSONResponse(content={"data": klines}, headers={"Access-Control-Allow-Origin": "*"})
+    return UJSONResponse(content={"data": State.klines[timeframe]}, headers={"Access-Control-Allow-Origin": "*"})
 
 
 async def get_kline(symbol, time_frame, limit, redis, klines):
