@@ -86,21 +86,23 @@ async def run_klines(q: JoinableQueue):
     del _temp
     lock = asyncio.Lock()
     while True:
-        q.join()
-        temp_klines = {}
-        async with lock:
-            async with redis.client() as conn:
-                for time_frame in CONFIG['general']['timeframe']:
-                    klines = {}
-                    for _s in State.symbols:
-                        res = await df_from_redis(conn, f'df:{time_frame}:{_s}')
-                        res.drop_duplicates(subset=['open_time'], keep=False, inplace=True)
-                        klines[_s] = res.to_json()
-                    try:
-                        temp_klines[time_frame] = klines
-                    except Exception as e:
-                        logger.error(e)
-            if temp_klines.get('1m'):
-                State.klines = deepcopy(temp_klines)
-        print('update kline')
-        await asyncio.sleep(10)
+        if q.qsize() > 0:
+            q.join()
+            temp_klines = {}
+            async with lock:
+                async with redis.client() as conn:
+                    for time_frame in CONFIG['general']['timeframe']:
+                        klines = {}
+                        for _s in State.symbols:
+                            res = await df_from_redis(conn, f'df:{time_frame}:{_s}')
+                            res.drop_duplicates(subset=['open_time'], keep=False, inplace=True)
+                            klines[_s] = res.to_json()
+                        try:
+                            temp_klines[time_frame] = klines
+                        except Exception as e:
+                            logger.error(e)
+                if temp_klines.get('1m'):
+                    State.klines = deepcopy(temp_klines)
+            print('update kline')
+            await asyncio.sleep(50)
+        await asyncio.sleep(0.1)
