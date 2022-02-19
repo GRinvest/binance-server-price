@@ -15,14 +15,14 @@ class Klines:
     async def run(self):
         srize = 4
         await redis.flushall()
-        sem = asyncio.Semaphore(5)
+        sem = asyncio.Semaphore(3)
         async with redis.pipeline(transaction=True) as self.pipe:
             async with ApiSession() as self.session:
                 await self.__find_symbol()
             instance = AddedKlines()
             symbols = await self.pipe.lrange('symbols', 0, -1).execute()
             for _tf in CONFIG['general']['timeframe']:
-                await asyncio.sleep(30)
+                await asyncio.sleep(5)
                 _tasks = []
                 async with ApiSession() as self.session:
                     for _s in symbols[0]:
@@ -43,6 +43,6 @@ class Klines:
         await self.pipe.delete('symbols').execute()
         res = await self.session.get_public_exchange_info()
         for item in res['data']['symbols']:
-            if item['contractType'] == 'PERPETUAL' and item['status'] == 'TRADING':
+            if item['contractType'] == 'PERPETUAL' and item['status'] == 'TRADING' and item['symbol'][-4:] == 'USDT':
                 self.pipe.lpush('symbols', item['symbol'])
         await self.pipe.execute()
