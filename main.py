@@ -54,7 +54,7 @@ if __name__ == '__main__':
     try:
         procs = [
             Process(target=process_symbol, args=(event,)),
-            Process(target=process_api, args=(event, ))
+            Process(target=process_api, args=(event, q, ))
         ]
         for tf in CONFIG['general']['timeframe']:
             procs.append(Process(target=process_records, args=(event, tf, q, )))
