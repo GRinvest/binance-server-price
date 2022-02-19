@@ -1,14 +1,14 @@
 import asyncio
 import pickle
-
+from multiprocessing import Queue
 from aio_binance.futures.usdt import WsClient, ApiSession
 
 from config import redis
 
 
 class Tasks:
-
-    def __init__(self, time_frame='1m'):
+    def __init__(self, q: Queue, time_frame='1m'):
+        self.q = q
         self.timeframe = time_frame
         self.conn = None
         self.pipe = None
@@ -23,6 +23,7 @@ class Tasks:
             await self.conn.lpush(':'.join([
                 data['data']['s'],
                 data['data']['k']['i']]), pickle.dumps(_data))
+            self.q.put([data['data']['s'], data['data']['k']['i']])
 
     async def creation(self):
         async with redis.client() as conn:
@@ -42,6 +43,7 @@ class Tasks:
         ws = WsClient(reply_timeout=600)
         for symbol in self.symbols:
             streams.append(ws.stream_kline(symbol, self.timeframe))
+            self.q.put([symbol, self.timeframe])
         res = await asyncio.gather(*streams)
         async with redis.client() as self.conn:
             await ws.subscription_streams(res, self.event_kline)

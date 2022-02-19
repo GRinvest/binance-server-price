@@ -17,10 +17,10 @@ def process_api(_event):
                 reload=False)
 
 
-def process_records(_event, timeframe):
+def process_records(_event, timeframe, _q):
     _event.wait()
     try:
-        asyncio.run(tasks.Tasks(timeframe).creation())
+        asyncio.run(tasks.Tasks(_q, timeframe).creation())
     except KeyboardInterrupt:
         pass
     finally:
@@ -39,24 +39,25 @@ def process_symbol(_event):
         _event.set()
 
 
-def process_create_df(_event, time_frame):
+def process_create_df(_event, _q: Queue):
     """ Create DataFrame and save Redis"""
     from dataframe import record
     _event.wait()
-    asyncio.run(record.run(time_frame))
+    asyncio.run(record.run(_q))
 
 
 if __name__ == '__main__':
     print('   $$$ Run program:')
     event = Event()
+    q = Queue()
     try:
         procs = [
             Process(target=process_symbol, args=(event,)),
             Process(target=process_api, args=(event, ))
         ]
         for tf in CONFIG['general']['timeframe']:
-            procs.append(Process(target=process_records, args=(event, tf, )))
-            procs.append(Process(target=process_create_df, args=(event, tf, )))
+            procs.append(Process(target=process_records, args=(event, tf, q, )))
+            procs.append(Process(target=process_create_df, args=(event, q, )))
         for proc in procs:
             proc.start()
         for proc in procs:
