@@ -4,7 +4,7 @@ import pickle
 import numpy as np
 import pandas as pd
 from tapy import Indicators
-from multiprocessing import Queue
+from multiprocessing import JoinableQueue
 from config import redis
 from redis.df import df_in_redis
 
@@ -74,9 +74,10 @@ async def _create_df(alias):  # [symbol, time_frame]
     await _save_df(data, alias)
 
 
-async def run(q: Queue):
+async def run(q: JoinableQueue):
     while True:
         alias = q.get()
         await _create_df(alias)
+        q.task_done()
         print(f'update {alias}')
 

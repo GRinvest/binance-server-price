@@ -77,7 +77,7 @@ async def startup() -> None:
     State.redis = redis
     State.secret = SECRET_KEY
     State.username = USERNAME
-    State.task_run_klines = asyncio.create_task(handle.run_klines())
+    State.task_run_klines = asyncio.create_task(handle.run_klines(State.q))
 
 
 @app.on_event("shutdown")

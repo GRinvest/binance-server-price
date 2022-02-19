@@ -1,13 +1,13 @@
 import asyncio
 import pickle
-from multiprocessing import Queue
+from multiprocessing import JoinableQueue
 from aio_binance.futures.usdt import WsClient, ApiSession
 
 from config import redis
 
 
 class Tasks:
-    def __init__(self, q: Queue, time_frame='1m'):
+    def __init__(self, q: JoinableQueue, time_frame='1m'):
         self.q = q
         self.timeframe = time_frame
         self.conn = None

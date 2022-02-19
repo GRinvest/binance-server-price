@@ -2,7 +2,7 @@ import asyncio
 import pickle
 from copy import deepcopy
 from time import time
-
+from multiprocessing import JoinableQueue
 import aioredis
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import UJSONResponse
@@ -75,7 +75,7 @@ async def get_kline(symbol, time_frame, limit, redis, klines):
         klines[symbol] = data
 
 
-async def run_klines():
+async def run_klines(q: JoinableQueue):
     redis: aioredis.Redis = State.redis
     async with redis.client() as conn:
         symbols = await conn.lrange('symbols', 0, -1)
@@ -84,21 +84,23 @@ async def run_klines():
         _temp.append(_s.decode("utf-8"))
     State.symbols = deepcopy(_temp)
     del _temp
+    lock = asyncio.Lock()
     while True:
-        await asyncio.sleep(30)
+        q.join()
         temp_klines = {}
-        async with redis.client() as conn:
-            for time_frame in CONFIG['general']['timeframe']:
-                klines = {}
-                for _s in State.symbols:
-                    res = await df_from_redis(conn, f'df:{time_frame}:{_s}')
-                    res.drop_duplicates(subset=['open_time'], keep=False, inplace=True)
-                    klines[_s] = res.to_json()
-                try:
-                    temp_klines[time_frame] = klines
-                except Exception as e:
-                    logger.error(e)
-        if temp_klines.get('1m'):
-            State.klines = deepcopy(temp_klines)
+        async with lock:
+            async with redis.client() as conn:
+                for time_frame in CONFIG['general']['timeframe']:
+                    klines = {}
+                    for _s in State.symbols:
+                        res = await df_from_redis(conn, f'df:{time_frame}:{_s}')
+                        res.drop_duplicates(subset=['open_time'], keep=False, inplace=True)
+                        klines[_s] = res.to_json()
+                    try:
+                        temp_klines[time_frame] = klines
+                    except Exception as e:
+                        logger.error(e)
+            if temp_klines.get('1m'):
+                State.klines = deepcopy(temp_klines)
         print('update kline')
-        await asyncio.sleep(30)
+        await asyncio.sleep(10)

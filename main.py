@@ -1,5 +1,5 @@
 import asyncio
-from multiprocessing import Process, Event, Queue
+from multiprocessing import Process, Event, JoinableQueue
 
 import uvicorn
 
@@ -7,9 +7,10 @@ from config import CONFIG
 from records import tasks
 
 
-def process_api(_event):
+def process_api(_event, _q):
+    from starlette.datastructures import State
     _event.wait()
-
+    State.q = q
     uvicorn.run("app:app",
                 host=CONFIG['api']['host'],
                 port=CONFIG['api']['port'],
@@ -39,7 +40,7 @@ def process_symbol(_event):
         _event.set()
 
 
-def process_create_df(_event, _q: Queue):
+def process_create_df(_event, _q: JoinableQueue):
     """ Create DataFrame and save Redis"""
     from dataframe import record
     _event.wait()
@@ -49,7 +50,7 @@ def process_create_df(_event, _q: Queue):
 if __name__ == '__main__':
     print('   $$$ Run program:')
     event = Event()
-    q = Queue()
+    q = JoinableQueue()
     try:
         procs = [
             Process(target=process_symbol, args=(event,)),
