@@ -86,7 +86,7 @@ async def run_klines(q: JoinableQueue):
             q.join()
             temp_klines = {}
             async with lock:
-                await asyncio.sleep(3)
+                await asyncio.sleep(10)
                 async with redis.client() as conn:
                     for time_frame in CONFIG['general']['timeframe']:
                         klines = {}
@@ -101,5 +101,5 @@ async def run_klines(q: JoinableQueue):
                 if temp_klines.get('1m'):
                     State.klines = deepcopy(temp_klines)
             print('update kline')
-            await asyncio.sleep(50)
+            await asyncio.sleep(40)
         await asyncio.sleep(0.1)
