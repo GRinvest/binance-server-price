@@ -10,7 +10,7 @@ from records import tasks
 def process_api(_event, _q):
     from starlette.datastructures import State
     _event.wait()
-    State.q = q
+    State.q = _q
     uvicorn.run("app:app",
                 host=CONFIG['api']['host'],
                 port=CONFIG['api']['port'],

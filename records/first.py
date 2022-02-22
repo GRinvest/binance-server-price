@@ -15,7 +15,7 @@ class Klines:
     async def run(self):
         srize = 4
         await redis.flushall()
-        sem = asyncio.Semaphore(3)
+        sem = asyncio.Semaphore(5)
         async with redis.pipeline(transaction=True) as self.pipe:
             async with ApiSession() as self.session:
                 await self.__find_symbol()

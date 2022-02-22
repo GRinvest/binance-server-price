@@ -1,6 +1,7 @@
 import asyncio
 import pickle
 from copy import deepcopy
+from decimal import Decimal
 from time import time
 from multiprocessing import JoinableQueue
 import aioredis
@@ -10,7 +11,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from loguru import logger
 from starlette.datastructures import State
-
+import pandas as pd
 from api.v1 import models
 from config import CONFIG
 from redis.df import df_from_redis
@@ -62,6 +63,11 @@ async def read_users_me(timeframe: str = '1m'):
     return UJSONResponse(content={"data": State.klines[timeframe]}, headers={"Access-Control-Allow-Origin": "*"})
 
 
+@router.get("/ma", dependencies=[Depends(get_current_active_user)])
+async def read_users_me(timeframe: str = '1m'):
+    return UJSONResponse(content={"data": State.klines_ma.get(timeframe)}, headers={"Access-Control-Allow-Origin": "*"})
+
+
 async def get_kline(symbol, time_frame, limit, redis, klines):
     async with redis.client() as conn:
         data = []
@@ -101,5 +107,64 @@ async def run_klines(q: JoinableQueue):
                 if temp_klines.get('1m'):
                     State.klines = deepcopy(temp_klines)
             print('update kline')
+            await asyncio.sleep(40)
+        await asyncio.sleep(0.1)
+
+
+async def create_ma(q: JoinableQueue):
+    redis: aioredis.Redis = State.redis
+    async with redis.client() as conn:
+        symbols = await conn.lrange('symbols', 0, -1)
+    _temp = []
+    for _s in symbols:
+        _temp.append(_s.decode("utf-8"))
+    State.symbols_ma = deepcopy(_temp)
+    del _temp
+    lock = asyncio.Lock()
+    while True:
+        if q.qsize() > 0:
+            q.join()
+            temp_klines = {}
+            async with lock:
+                await asyncio.sleep(10)
+                async with redis.client() as conn:
+                    for time_frame in CONFIG['general']['timeframe']:
+                        klines = {}
+                        for _s in State.symbols_ma:
+                            df: pd.DataFrame = await df_from_redis(conn, f'df:{time_frame}:{_s}')
+                            df.drop_duplicates(subset=['open_time'], keep=False, inplace=True)
+                            ind = []
+                            for row in df.itertuples(index=False):
+                                ind.append(row)
+                            ind.reverse()
+                            fractals_high = 0
+                            for row in ind:
+                                if row.fractals_high:
+                                    fractals_high = row.High
+                                    break
+                            fractals_low = 0
+                            for row in ind:
+                                if row.fractals_low:
+                                    fractals_low = row.Low
+                                    break
+                            klines[_s] = dict(
+                                open_time=str(df.open_time.iloc[-1]),
+                                Open=str(df.Open.iloc[-1]),
+                                High=str(df.High.iloc[-1]),
+                                Low=str(df.Low.iloc[-1]),
+                                Close=str(df.Close.iloc[-1]),
+                                ema_high=str(df.ema_high.iloc[-1]),
+                                ema_low=str(df.ema_low.iloc[-1]),
+                                atr=str(df.atr.iloc[-1]),
+                                fractals_high=str(fractals_high),
+                                fractals_low=str(fractals_low)
+                            )
+                        try:
+                            temp_klines[time_frame] = klines
+                        except Exception as e:
+                            logger.error(e)
+                if temp_klines.get('1m'):
+                    State.klines_ma = deepcopy(temp_klines)
+            print('update kline_ma')
             await asyncio.sleep(40)
         await asyncio.sleep(0.1)

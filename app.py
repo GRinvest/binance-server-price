@@ -74,19 +74,21 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 @app.on_event("startup")
 async def startup() -> None:
+    State.klines_ma = {}
     State.redis = redis
     State.secret = SECRET_KEY
     State.username = USERNAME
-    State.task_run_klines = asyncio.create_task(handle.run_klines(State.q))
+    #  State.task_run_klines = asyncio.create_task(handle.run_klines(State.q))
+    State.task_create_ma = asyncio.create_task(handle.create_ma(State.q))
 
 
 @app.on_event("shutdown")
 async def shutdown() -> None:
     _redis = State.redis
     await _redis.close()
-    task_run_klines = State.task_run_klines
-    task_run_klines.cancel()
+    task_create_ma = State.task_create_ma
+    task_create_ma.cancel()
     try:
-        await task_run_klines
+        await task_create_ma
     except asyncio.CancelledError:
         print("Task run_klines() is cancelled now")
