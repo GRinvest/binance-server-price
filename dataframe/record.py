@@ -50,7 +50,8 @@ def _add_indicators(df, length=180):
     i.fractals('fractals_high', 'fractals_low')
     i.ema(length, 'ema_high', 'High')
     i.ema(length, 'ema_low', 'Low')
-    i.atr(30)
+    i.atr(5)
+    i.df.fillna(0)
     return i.df
 
 
