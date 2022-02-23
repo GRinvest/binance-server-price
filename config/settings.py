@@ -23,7 +23,8 @@ def load_config(path=DEFAULT_CONFIG_PATH):
                 'symbols': 'all',  # or list ['BTCUSDT', 'ETHUSDT', ...],
                 'timeframe': ['1m', '15m'],
                 'method': 'standard',  # 'standard' or 'index' or 'mark'
-                'download_kline': True
+                'download_kline': True,
+                'symbols_not_work': []
             },
             'database': {
                 'host': '127.0.0.1',

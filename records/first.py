@@ -43,6 +43,9 @@ class Klines:
         await self.pipe.delete('symbols').execute()
         res = await self.session.get_public_exchange_info()
         for item in res['data']['symbols']:
-            if item['contractType'] == 'PERPETUAL' and item['status'] == 'TRADING' and item['symbol'][-4:] == 'USDT':
+            if item['contractType'] == 'PERPETUAL' \
+                    and item['status'] == 'TRADING' \
+                    and item['symbol'][-4:] == 'USDT' \
+                    and item['symbol'] not in CONFIG['general']['symbols_not_work']:
                 self.pipe.lpush('symbols', item['symbol'])
         await self.pipe.execute()
