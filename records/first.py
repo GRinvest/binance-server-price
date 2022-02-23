@@ -15,14 +15,13 @@ class Klines:
     async def run(self):
         srize = 4
         await redis.flushall()
-        sem = asyncio.Semaphore(5)
+        sem = asyncio.Semaphore(4)
         async with redis.pipeline(transaction=True) as self.pipe:
             async with ApiSession() as self.session:
                 await self.__find_symbol()
             instance = AddedKlines()
             symbols = await self.pipe.lrange('symbols', 0, -1).execute()
             for _tf in CONFIG['general']['timeframe']:
-                await asyncio.sleep(5)
                 _tasks = []
                 async with ApiSession() as self.session:
                     for _s in symbols[0]:

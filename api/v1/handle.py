@@ -168,6 +168,7 @@ async def create_ma(q: JoinableQueue):
                             logger.error(e)
                 if temp_klines.get('1m'):
                     State.klines_ma = deepcopy(temp_klines)
+                    await State.manager.broadcast(temp_klines)
             print('update kline_ma')
         await asyncio.sleep(0.1)
 

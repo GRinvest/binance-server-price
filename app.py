@@ -11,6 +11,8 @@ from starlette.datastructures import State
 from api.v1 import handle
 from api.v1 import models
 from config import redis, CONFIG
+from ws import handle as handle_ws
+
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -28,6 +30,7 @@ app = FastAPI(
     version="1.0"
 )
 app.include_router(handle.router, prefix='/api')
+app.include_router(handle_ws.router, prefix='/ws')
 origins = ["*"]
 
 app.add_middleware(
