@@ -1,22 +1,22 @@
 import asyncio
 import pickle
 from copy import deepcopy
-from decimal import Decimal
-from time import time
 from multiprocessing import JoinableQueue
+from time import time
+
 import aioredis
+import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import UJSONResponse
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from loguru import logger
 from starlette.datastructures import State
-import pandas as pd
+
 from api.v1 import models
 from config import CONFIG
 from redis.df import df_from_redis
-from sys import float_info as sflt
-from numpy import nan as npNaN
+from ta import atr, vwap
 
 
 router = APIRouter(prefix='/v1')
@@ -158,7 +158,8 @@ async def create_ma(q: JoinableQueue):
                                 Close=str(df.Close.iloc[-1]),
                                 ema_high=str(df.ema_high.iloc[-1]),
                                 ema_low=str(df.ema_low.iloc[-1]),
-                                atr=str(atr(df, 30)),
+                                atr=str(atr.load(df, 30, -1)),
+                                vwap=str(vwap.load(df, -1)),
                                 fractals_high=str(fractals_high),
                                 fractals_low=str(fractals_low)
                             )
@@ -171,28 +172,3 @@ async def create_ma(q: JoinableQueue):
                     await State.manager.broadcast(temp_klines)
             print('update kline_ma')
         await asyncio.sleep(0.1)
-
-
-def non_zero_range(high: pd.Series, low: pd.Series) -> pd.Series:
-    """Returns the difference of two series and adds epsilon to any zero values.
-    This occurs commonly in crypto data when 'high' = 'low'."""
-    diff = high - low
-    if diff.eq(0).any().any():
-        diff += sflt.epsilon
-    return diff
-
-
-def true_range(high, low, close, drift=None):
-    high_low_range = non_zero_range(high, low)
-    prev_close = close.shift(drift)
-    ranges = [high_low_range, high - prev_close, prev_close - low]
-    _true_range = pd.concat(ranges, axis=1)
-    _true_range = _true_range.abs().max(axis=1)
-    _true_range.iloc[:drift] = npNaN
-    return _true_range
-
-
-def atr(df: pd.DataFrame, length=5):
-    tr = true_range(high=df.High, low=df.Low, close=df.Close, drift=1)
-    _atr = tr.ewm(span=length, adjust=False).mean()
-    return _atr.iloc[-1]

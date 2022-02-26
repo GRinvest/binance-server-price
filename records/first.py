@@ -22,6 +22,7 @@ class Klines:
             instance = AddedKlines()
             symbols = await self.pipe.lrange('symbols', 0, -1).execute()
             for _tf in CONFIG['general']['timeframe']:
+                await asyncio.sleep(5)
                 _tasks = []
                 async with ApiSession() as self.session:
                     for _s in symbols[0]:
