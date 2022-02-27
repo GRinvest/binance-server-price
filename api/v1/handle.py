@@ -16,7 +16,7 @@ from starlette.datastructures import State
 from api.v1 import models
 from config import CONFIG
 from redis.df import df_from_redis
-from ta import atr, vwap
+from ta import atr, vwap, corr
 
 
 router = APIRouter(prefix='/v1')
@@ -132,10 +132,12 @@ async def create_ma(q: JoinableQueue):
                 await asyncio.sleep(1)
                 async with redis.client() as conn:
                     for time_frame in CONFIG['general']['timeframe']:
+                        df_klines = {}
                         klines = {}
                         for _s in State.symbols_ma:
                             df: pd.DataFrame = await df_from_redis(conn, f'df:{time_frame}:{_s}')
                             df.drop_duplicates(subset=['open_time'], keep=False, inplace=True)
+                            df_klines[_s] = deepcopy(df)
                             ind = []
                             for row in df.itertuples(index=False):
                                 ind.append(row)
@@ -163,10 +165,14 @@ async def create_ma(q: JoinableQueue):
                                 fractals_high=str(fractals_high),
                                 fractals_low=str(fractals_low)
                             )
+                        df_main = df_klines['BTCUSDT']
+                        for symbol, df in df_klines.items():
+                            klines[symbol]['corr'] = str(corr.load(df_main, df, -1))
                         try:
                             temp_klines[time_frame] = klines
                         except Exception as e:
                             logger.error(e)
+
                 if temp_klines.get('1m'):
                     State.klines_ma = deepcopy(temp_klines)
                     await State.manager.broadcast(temp_klines)
