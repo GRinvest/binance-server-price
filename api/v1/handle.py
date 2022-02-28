@@ -16,7 +16,7 @@ from starlette.datastructures import State
 from api.v1 import models
 from config import CONFIG
 from redis.df import df_from_redis
-from ta import atr, vwap, corr
+from ta import atr, vwap, corr, adx
 
 
 router = APIRouter(prefix='/v1')
@@ -152,6 +152,7 @@ async def create_ma(q: JoinableQueue):
                                 if row.fractals_low:
                                     fractals_low = row.Low
                                     break
+                            adx_ = adx.load(df)
                             klines[_s] = dict(
                                 open_time=str(df.open_time.iloc[-1]),
                                 Open=str(df.Open.iloc[-1]),
@@ -163,7 +164,8 @@ async def create_ma(q: JoinableQueue):
                                 atr=str(atr.load(df, 30, -1)),
                                 vwap=str(vwap.load(df, -1)),
                                 fractals_high=str(fractals_high),
-                                fractals_low=str(fractals_low)
+                                fractals_low=str(fractals_low),
+                                trend=True if adx_.adx.iloc[-1] > adx_.adx.iloc[-2] else False
                             )
                         df_main = df_klines['BTCUSDT']
                         for symbol, df in df_klines.items():

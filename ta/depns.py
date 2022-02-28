@@ -1,4 +1,5 @@
 from sys import float_info as sflt
+from typing import Union
 
 import pandas as pd
 from numpy import nan as npNaN
@@ -28,4 +29,17 @@ def hlc3(high, low, close):
     temp = (high + low + close) / 3.0
 
     temp.name = "HLC3"
+    return temp
+
+
+def zero(x: Union[int, float]) -> Union[int, float]:
+    """If the value is close to zero, then return zero. Otherwise, return itself."""
+    return 0 if abs(x) < sflt.epsilon else x
+
+
+def rma(close, length=None):
+    """Indicator: wildeR's Moving Average (RMA)"""
+    alpha = (1.0 / length) if length > 0 else 0.5
+    temp = close.ewm(alpha=alpha, min_periods=length).mean()
+    temp.name = f"RMA_{length}"
     return temp
