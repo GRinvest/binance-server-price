@@ -1,12 +1,21 @@
 import aioredis
 
-from config import settings
+from config.loads import data
 
-CONFIG = settings.load_config()
-REDIS_URL = 'redis://{}:{}/{}'.format(
-    CONFIG['database']['host'],
-    CONFIG['database']['port'],
-    CONFIG['database']['dbname']
-)
+if data.database.password == 'password':
+    host = 'redis://{}:{}/{}'.format(
+        data.database.host,
+        data.database.port,
+        data.database.dbname
+    )
+else:
+    host = 'redis://:{}@{}:{}/{}'.format(
+        data.database.password,
+        data.database.host,
+        data.database.port,
+        data.database.dbname
+    )
 
-redis: aioredis.Redis = aioredis.Redis.from_url(REDIS_URL)
+redis: aioredis.Redis = aioredis.Redis.from_url(host)
+
+redis_decoder: aioredis = aioredis.Redis.from_url(host, decode_responses=True)

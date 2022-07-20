@@ -1,67 +1,71 @@
 import asyncio
-from multiprocessing import Process, Event, JoinableQueue
+import multiprocessing as mp
 
-import uvicorn
-
-from config import CONFIG
-from records import tasks
-
-
-def process_api(_event, _q):
-    from starlette.datastructures import State
-    _event.wait()
-    State.q = _q
-    uvicorn.run("app:app",
-                host=CONFIG['api']['host'],
-                port=CONFIG['api']['port'],
-                log_level='debug',
-                reload=False)
+from aio_binance.error_handler.error import BinanceException
+from aio_binance.futures.usdt import Client
+from loguru import logger
+from config import config
 
 
-def process_records(_event, timeframe, _q):
-    _event.wait()
+async def run_record(e: mp.Event, symbol: list):
+    from price import record
+    e.wait()
+    await record.Tasks(symbol).creation()
+
+
+def process_record(e: mp.Event, symbol):
     try:
-        asyncio.run(tasks.Tasks(_q, timeframe).creation())
+        asyncio.run(run_record(e, symbol))
     except KeyboardInterrupt:
         pass
-    finally:
-        asyncio.run(asyncio.sleep(1))
 
 
-def process_symbol(_event):
-    from loguru import logger
-    from records.first import Klines
+async def run_first(e: mp.Event, symbols_):
+    from price import first
     try:
-        if CONFIG['general']['download_kline']:
-            asyncio.run(Klines().run())
-    except Exception as e:
-        logger.exception(e)
+        await first.run(symbols_)
+    except BinanceException as e:
+        logger.error(e)
     else:
-        _event.set()
+        e.set()
 
 
-def process_create_df(_event, _q: JoinableQueue):
-    """ Create DataFrame and save Redis"""
-    from dataframe import record
-    _event.wait()
-    asyncio.run(record.run(_q))
+def process_first(e: mp.Event, symbols_):
+    try:
+        asyncio.run(run_first(e, symbols_))
+    except KeyboardInterrupt:
+        pass
+
+
+async def run_symbols():
+    api = Client(debug='info')
+    res = await api.get_public_exchange_info()
+    symbols_ = []
+    for item in res['data']['symbols']:
+        if item['contractType'] == 'PERPETUAL' \
+                and item['status'] == 'TRADING' \
+                and item['symbol'][-4:] == 'USDT' \
+                and item['symbol'] not in config.price.symbols_not_work:
+            symbols_.append(item['symbol'])
+    return symbols_
 
 
 if __name__ == '__main__':
-    print('   $$$ Run program:')
-    event = Event()
-    q = JoinableQueue()
+    print('   $$$ Run price program:')
+    event = mp.Event()
+    symbols = asyncio.run(run_symbols())
+    srize = 10
     try:
         procs = [
-            Process(target=process_symbol, args=(event,)),
-            Process(target=process_api, args=(event, q, ))
+            mp.Process(target=process_first, args=(event, symbols,))
         ]
-        for tf in CONFIG['general']['timeframe']:
-            procs.append(Process(target=process_records, args=(event, tf, q, )))
-            procs.append(Process(target=process_create_df, args=(event, q, )))
+        srize_symbols = [symbols[i:i + srize] for i in range(0, len(symbols), srize)]
+        for symbol_ in srize_symbols:
+            procs.append(mp.Process(target=process_record, args=(event, symbol_, )))
         for proc in procs:
             proc.start()
         for proc in procs:
             proc.join()
     except KeyboardInterrupt:
-        print(f"Close program")
+        pass
+    print("Close price program")
