@@ -7,6 +7,7 @@ name = "pypi"
 aio-binance-library = "*"
 aioredis = "*"
 pytoml = "*"
+pydantic = "*"
 
 [dev-packages]
 
