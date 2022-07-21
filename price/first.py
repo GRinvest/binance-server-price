@@ -42,7 +42,6 @@ async def run(symbols: list):
     async with redis.pipeline() as pipe:
         if config.price.flush_db:
             await pipe.flushall().execute()
-        tasks = []
         async with ApiSession() as session:
             instance = AddKlines(pipe, session)
             for tf in time_frame:
