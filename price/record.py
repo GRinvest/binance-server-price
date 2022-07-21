@@ -11,7 +11,7 @@ class Tasks:
     def __init__(self, symbols: list):
         self.pipe = None
         self.symbols = symbols
-        self.expire_at = 60 * 60 * 24 * 30
+        self.expire_at = 60 * 60 * 24 * 200
 
     async def event_kline(self, data: dict):
         k = data['data']['k']

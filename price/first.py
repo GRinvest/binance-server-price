@@ -11,7 +11,7 @@ class AddKlines:
     def __init__(self, pipe, api: Client):
         self.pipe = pipe
         self.api = api
-        self.expire_at = 60 * 60 * 24 * 30
+        self.expire_at = 60 * 60 * 24 * 200
 
     async def new(self, symbol,
                   sem: asyncio.Semaphore) -> None:
