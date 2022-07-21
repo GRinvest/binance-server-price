@@ -31,7 +31,7 @@ class AddKlines:
                 float(i[4]),
                 float(i[5]),
                 hex(i[6])
-            ])): score})
+            ]).encode('utf-8')): score})
 
 
 async def run(symbols: list):
