@@ -1,10 +1,9 @@
 import asyncio
 
-import aioredis
 import ujson
 from aio_binance.futures.usdt import WsClient
 
-from config import config, redis
+from config import redis
 
 
 class Tasks:
@@ -12,13 +11,13 @@ class Tasks:
     def __init__(self, symbols: list):
         self.pipe = None
         self.symbols = symbols
+        self.expire_at = 60 * 60 * 24 * 30
 
     async def event_kline(self, data: dict):
         k = data['data']['k']
         alias = ':'.join(['klines', data['data']['ps']])
         score = k['t']
-        self.pipe.zremrangebyscore(alias, score, score)
-        self.pipe.zadd(alias, {ujson.dumps([
+        self.pipe.zremrangebyscore(alias, score, score).zadd(alias, {ujson.dumps([
             score,
             float(k['o']),
             float(k['h']),
@@ -26,7 +25,7 @@ class Tasks:
             float(k['c']),
             float(k['v']),
             k['T']
-        ]): score})
+        ]): score}).expire(alias, self.expire_at)
         await self.pipe.execute()
 
     async def creation(self):

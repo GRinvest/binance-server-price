@@ -11,6 +11,7 @@ class AddKlines:
     def __init__(self, pipe, api: Client):
         self.pipe = pipe
         self.api = api
+        self.expire_at = 60 * 60 * 24 * 30
 
     async def new(self, symbol,
                   sem: asyncio.Semaphore) -> None:
@@ -23,8 +24,7 @@ class AddKlines:
         for i in res['data']:
             alias = ':'.join(['klines', symbol])
             score = i[0]
-            await self.pipe.zremrangebyscore(alias, score, score)
-            await self.pipe.zadd(alias, {ujson.dumps([
+            self.pipe.zremrangebyscore(alias, score, score).zadd(alias, {ujson.dumps([
                 score,
                 float(i[1]),
                 float(i[2]),
@@ -32,21 +32,22 @@ class AddKlines:
                 float(i[4]),
                 float(i[5]),
                 i[6]
-            ]): score})
+            ]): score}).expire(alias, self.expire_at)
 
 
 async def run(symbols: list):
     srize = 4
     sem = asyncio.Semaphore(10)
-    async with redis.client() as conn:
+    async with redis.pipeline() as pipe:
         if config.price.flush_db:
-            await conn.flushall()
+            await pipe.flushall()
         tasks = []
         async with ApiSession() as session:
-            instance = AddKlines(conn, session)
+            instance = AddKlines(pipe, session)
             for symbol in symbols:
                 tasks.append(asyncio.create_task(instance.new(symbol, sem)))
             srize_list = [tasks[i:i + srize] for i in range(0, len(tasks), srize)]
             for item in srize_list:
                 await asyncio.gather(*item)
+        await pipe.execute()
     await asyncio.sleep(2)
