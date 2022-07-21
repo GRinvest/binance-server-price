@@ -44,8 +44,8 @@ async def run(symbols: list):
             await pipe.flushall().execute()
         async with ApiSession() as session:
             instance = AddKlines(pipe, session)
-            for tf in time_frame:
-                for symbol in symbols:
-                    pipe.lpush('symbols', symbol)
+            for symbol in symbols:
+                pipe.lpush('symbols', symbol)
+                for tf in time_frame:
                     await instance.new(symbol, tf, sem)
                     await pipe.execute()
