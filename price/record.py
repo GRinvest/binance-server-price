@@ -11,7 +11,6 @@ class Tasks:
     def __init__(self, symbols: list):
         self.pipe = None
         self.symbols = symbols
-        self.expire_at = 60 * 60 * 24 * 200
 
     async def event_kline(self, data: dict):
         k = data['data']['k']
@@ -25,7 +24,7 @@ class Tasks:
             float(k['c']),
             float(k['v']),
             k['T']
-        ]): score}).expire(alias, self.expire_at)
+        ]): score})
         await self.pipe.execute()
 
     async def creation(self):
