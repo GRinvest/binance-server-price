@@ -50,16 +50,15 @@ async def run_symbols():
 
 if __name__ == '__main__':
     print('   $$$ Run price program:')
-    event = mp.Event()
     symbols = asyncio.run(run_symbols())
     srize = 10
     try:
         procs = [
-            mp.Process(target=process_first, args=(event, symbols,))
+            mp.Process(target=process_first, args=(symbols,))
         ]
         srize_symbols = [symbols[i:i + srize] for i in range(0, len(symbols), srize)]
         for symbol_ in srize_symbols:
-            procs.append(mp.Process(target=process_record, args=(event, symbol_, )))
+            procs.append(mp.Process(target=process_record, args=(symbol_, )))
         for proc in procs:
             proc.start()
         for proc in procs:
