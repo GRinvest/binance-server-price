@@ -22,8 +22,7 @@ class Tasks:
             float(k['h']),
             float(k['l']),
             float(k['c']),
-            float(k['v']),
-            hex(k['T'])
+            float(k['v'])
         ]): score})
         await self.pipe.execute()
 

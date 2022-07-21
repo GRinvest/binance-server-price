@@ -29,8 +29,7 @@ class AddKlines:
                 float(i[2]),
                 float(i[3]),
                 float(i[4]),
-                float(i[5]),
-                hex(i[6])
+                float(i[5])
             ]): score})
 
 
