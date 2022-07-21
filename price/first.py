@@ -24,7 +24,6 @@ class AddKlines:
             alias = ':'.join(['klines', symbol])
             score = i[0]
             self.pipe.zremrangebyscore(alias, score, score).zadd(alias, {ujson.dumps([
-                score,
                 float(i[1]),
                 float(i[2]),
                 float(i[3]),

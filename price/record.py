@@ -17,7 +17,6 @@ class Tasks:
         alias = ':'.join(['klines', data['data']['ps']])
         score = k['t']
         self.pipe.zremrangebyscore(alias, score, score).zadd(alias, {ujson.dumps([
-            score,
             float(k['o']),
             float(k['h']),
             float(k['l']),
