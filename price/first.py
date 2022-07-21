@@ -42,14 +42,15 @@ async def run(symbols: list):
     sem = asyncio.Semaphore(2)
     async with redis.pipeline() as pipe:
         if config.price.flush_db:
-            await pipe.flushall()
+            pipe.flushall()
         tasks = []
         async with ApiSession() as session:
             instance = AddKlines(pipe, session)
             for tf in time_frame:
                 for symbol in symbols:
+                    pipe.lpush('symbols', symbol)
                     tasks.append(asyncio.create_task(instance.new(symbol, tf, sem)))
             srize_list = [tasks[i:i + srize] for i in range(0, len(tasks), srize)]
             for item in srize_list:
                 await asyncio.gather(*item)
-        await pipe.execute()
+                await pipe.execute()
