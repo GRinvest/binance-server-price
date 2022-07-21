@@ -38,8 +38,7 @@ class AddKlines:
 
 async def run(symbols: list):
     time_frame = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d']
-    srize = 2
-    sem = asyncio.Semaphore(2)
+    sem = asyncio.Semaphore(3)
     async with redis.pipeline() as pipe:
         if config.price.flush_db:
             await pipe.flushall().execute()
@@ -49,8 +48,5 @@ async def run(symbols: list):
             for tf in time_frame:
                 for symbol in symbols:
                     pipe.lpush('symbols', symbol)
-                    tasks.append(asyncio.create_task(instance.new(symbol, tf, sem)))
-            srize_list = [tasks[i:i + srize] for i in range(0, len(tasks), srize)]
-            for item in srize_list:
-                await asyncio.gather(*item)
-        await pipe.execute()
+                    await instance.new(symbol, tf, sem)
+                    await pipe.execute()
