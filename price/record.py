@@ -15,7 +15,7 @@ class Tasks:
 
     async def event_kline(self, data: dict):
         k = data['data']['k']
-        alias = ':'.join(['klines', data['data']['ps']])
+        alias = ':'.join(['klines', data['data']['ps'], '1m'])
         score = k['t']
         self.pipe.zremrangebyscore(alias, score, score).zadd(alias, {ujson.dumps([
             float(k['o']),
