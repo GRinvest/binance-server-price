@@ -38,7 +38,7 @@ class AddKlines:
 
 async def run(symbols: list):
     time_frame = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d']
-    sem = asyncio.Semaphore(3)
+    sem = asyncio.Semaphore(5)
     async with redis.pipeline() as pipe:
         if config.price.flush_db:
             await pipe.flushall().execute()
