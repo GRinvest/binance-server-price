@@ -17,13 +17,13 @@ class Tasks:
         k = data['data']['k']
         alias = ':'.join(['klines', data['data']['ps']])
         score = k['t']
-        self.pipe.zremrangebyscore(alias, score, score).zadd(alias, {pickle.dumps([
+        self.pipe.zremrangebyscore(alias, score, score).zadd(alias, {ujson.dumps([
             float(k['o']),
             float(k['h']),
             float(k['l']),
             float(k['c']),
             float(k['v']),
-            k['T']
+            hex(k['T'])
         ]): score})
         await self.pipe.execute()
 
