@@ -1,4 +1,5 @@
 import asyncio
+import pickle
 
 import ujson
 from aio_binance.futures.usdt import WsClient
@@ -16,7 +17,7 @@ class Tasks:
         k = data['data']['k']
         alias = ':'.join(['klines', data['data']['ps']])
         score = k['t']
-        self.pipe.zremrangebyscore(alias, score, score).zadd(alias, {ujson.dumps([
+        self.pipe.zremrangebyscore(alias, score, score).zadd(alias, {pickle.dumps([
             float(k['o']),
             float(k['h']),
             float(k['l']),

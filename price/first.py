@@ -1,4 +1,5 @@
 import asyncio
+import pickle
 
 import ujson
 from aio_binance.futures.usdt import ApiSession, Client
@@ -23,7 +24,7 @@ class AddKlines:
         for i in res['data']:
             alias = ':'.join(['klines', symbol])
             score = i[0]
-            self.pipe.zremrangebyscore(alias, score, score).zadd(alias, {ujson.dumps([
+            self.pipe.zremrangebyscore(alias, score, score).zadd(alias, {pickle.dumps([
                 float(i[1]),
                 float(i[2]),
                 float(i[3]),
