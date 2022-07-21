@@ -17,12 +17,13 @@ class AddKlines:
                   symbol,
                   time_frame,
                   sem: asyncio.Semaphore) -> None:
+        limit = 1500 if time_frame == '1m' else 500
         async with sem:
             res = await self.api.get_public_continuous_klines(
                 symbol,
                 'PERPETUAL',
                 time_frame,
-                limit=1500)
+                limit=limit)
         for i in res['data']:
             alias = ':'.join(['klines', symbol, time_frame])
             score = i[0]
@@ -37,8 +38,8 @@ class AddKlines:
 
 async def run(symbols: list):
     time_frame = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d']
-    srize = 4
-    sem = asyncio.Semaphore(5)
+    srize = 2
+    sem = asyncio.Semaphore(2)
     async with redis.pipeline() as pipe:
         if config.price.flush_db:
             await pipe.flushall()
