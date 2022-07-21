@@ -7,32 +7,30 @@ from loguru import logger
 from config import config
 
 
-async def run_record(e: mp.Event, symbol: list):
+async def run_record(symbol: list):
     from price import record
-    e.wait()
+
     await record.Tasks(symbol).creation()
 
 
-def process_record(e: mp.Event, symbol):
+def process_record(symbol):
     try:
-        asyncio.run(run_record(e, symbol))
+        asyncio.run(run_record(symbol))
     except KeyboardInterrupt:
         pass
 
 
-async def run_first(e: mp.Event, symbols_):
+async def run_first(symbols_):
     from price import first
     try:
         await first.run(symbols_)
     except BinanceException as e:
         logger.error(e)
-    else:
-        e.set()
 
 
-def process_first(e: mp.Event, symbols_):
+def process_first(symbols_):
     try:
-        asyncio.run(run_first(e, symbols_))
+        asyncio.run(run_first(symbols_))
     except KeyboardInterrupt:
         pass
 
