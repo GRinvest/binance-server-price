@@ -4,7 +4,7 @@ import multiprocessing as mp
 from aio_binance.error_handler.error import BinanceException
 from aio_binance.futures.usdt import Client
 from loguru import logger
-from config import config
+from config import config, redis_decoder
 
 
 async def run_record(symbol: list):
@@ -36,15 +36,19 @@ def process_first(symbols_):
 
 
 async def run_symbols():
-    api = Client(debug='info')
-    res = await api.get_public_exchange_info()
-    symbols_ = []
-    for item in res['data']['symbols']:
-        if item['contractType'] == 'PERPETUAL' \
-                and item['status'] == 'TRADING' \
-                and item['symbol'][-4:] == 'USDT' \
-                and item['symbol'] not in config.price.symbols_not_work:
-            symbols_.append(item['symbol'])
+    if config.price.flush_db:
+        api = Client(debug='info')
+        res = await api.get_public_exchange_info()
+        symbols_ = []
+        for item in res['data']['symbols']:
+            if item['contractType'] == 'PERPETUAL' \
+                    and item['status'] == 'TRADING' \
+                    and item['symbol'][-4:] == 'USDT' \
+                    and item['symbol'] not in config.price.symbols_not_work:
+                symbols_.append(item['symbol'])
+    else:
+        async with redis_decoder.client() as conn:
+            symbols_ = await conn.lrange('symbols', 0, -1)
     return symbols_
 
 

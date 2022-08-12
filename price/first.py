@@ -18,6 +18,8 @@ class AddKlines:
                   time_frame,
                   sem: asyncio.Semaphore) -> None:
         limit = 1500 if time_frame == '1m' else 500
+        if not config.price.flush_db and time_frame == '1m':
+            return
         async with sem:
             res = await self.api.get_public_continuous_klines(
                 symbol,
@@ -45,7 +47,8 @@ async def run(symbols: list):
         async with ApiSession() as session:
             instance = AddKlines(pipe, session)
             for symbol in symbols:
-                pipe.lpush('symbols', symbol)
+                if config.price.flush_db:
+                    pipe.lpush('symbols', symbol)
                 for tf in time_frame:
                     await instance.new(symbol, tf, sem)
                     await pipe.execute()
